@@ -16,7 +16,7 @@ tags:
 * 送信元 : Microsoft Azure <azure-noreply@microsoft.com> から TRACKING ID: 5T93-LTG として以下の件名のメールでお知らせ
   ->Continuous access evaluation will be enabled in premium Azure AD tenants beginning on 15 June 2021
 
-CAE とは、簡単に言いますと **あるサービスを利用しているクライアントの状態が変わった際、ほぼリアルタイムでその変化を検知してアクセス制御を行う** ことができる機能、です！<BR>
+CAE とは、簡単に言いますと **あるサービスを利用しているクライアントの状態が変わった際、ほぼリアルタイムでその変化を検知してアクセス制御を行う** ことができる機能、です！
 実は以下のような技術情報、Blog にてお伝えしてきた通り、2020 年から機能自体は実装が進んでいました。
 
 [ポリシーとセキュリティのリアル タイムな適用に向けて](https://jpazureid.github.io/blog/azure-active-directory/moving-towards-real-time-policy-and-security-enforcement/)
@@ -30,17 +30,20 @@ CAE とは、簡単に言いますと **あるサービスを利用している�
 <BR>
 
 ## CAE とは具体的にどんな機能なの？
+
 これまで、条件付きアクセス (CA) によるアクセス制御を行われている環境では [Azure AD (AAD) に対してクライアントがアクセス トークンの新規取得、もしくは取得済みアクセス トークンの更新] を行うタイミングで、CA ポリシーの評価が行われていました。これは、逆に言うと [クライアントの取得済みアクセス トークンの有効期限内であれば、AAD へのアクセスが行われず CA ポリシーの評価もその間は行われない] ことを意味しています。
 
 通常、あるリソース (Exchange Online や SharePoint Online 等) へクライアントがアクセスするために、AAD が発行しているアクセス トークンの有効期限は既定では 60 分です。つまり、アクセス トークンを取得してから 60 分間は、該当クライアントはリソースに対してアクセスし続けることが可能です。
 もしその 60 分間に、該当 AAD ユーザー自体が (運用によって適切に) 無効もしくは削除されたり、セキュリティ リスクに伴いパスワードの変更や発行済みトークンの失効が行われたり、アクセスが許可されていない場所にクライアントが移動したりしたとしても、これまでは [アクセス トークンの更新タイミング = 前回取得から約 60 分後] までは、リソースへのアクセスが継続して行えてしまいました。
 
 ここで、CAE が有効な AAD テナントでは、CAE に対応しているリソースに対して AAD から状態変化の Event がほぼリアルタイム (\*) で通知されるようになります。また、CA ポリシーがリソースにも共有され、クライアントのアクセス元 IP アドレスのチェックがリソース側でも行われるようになり、アクセスが許可されていない場所にクライアントが移動した場合の検知がほぼリアルタイム (\*) に行えることになります。
-(\*) <font color="red">クラウド サービス間の処理となるため、数分～十数分程度のバッファはあるものとしてお考えください</font>
- 
+[!Warning]
+(\*) クラウド サービス間の処理となるため、数分～十数分程度のバッファはあるものとしてお考えください
+
 CAE が有効に動作した際の、実際の処理フローのシナリオ例は、前述の技術情報 [継続的アクセス評価](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation) の [フローの例](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation#example-flows) をぜひご覧ください。以下にそれぞれのシナリオを解説します。
 
 ### ユーザー失効イベントのフロー
+
 こちらは管理者が意図して、ある AAD ユーザーの更新トークンを失効させた、というシナリオになります。
 CAE が提供される前では、何らかの理由 (セキュリティ要因に関する理由が主なものでしょう) で更新トークンを失効させても、アクセス トークンが有効な 60 分間は、継続してユーザーはリソース アクセスが可能でした。
 しかし、管理者としては、更新トークンの失効と併せて一刻も早くアクセス トークンの利用も停止させ、その AAD ユーザーに早く再認証を求めさせたい、と思うのが自然です。
@@ -52,6 +55,7 @@ AAD は、ある AAD ユーザーの更新トークンが失効されると、Ev
 ここでクライアントは AAD に向かい、改めて認証が行われて、CA によるアクセス制御の評価を受けることになります。
 
 ### ユーザー状態変更のフロー (プレビュー)
+
 こちらは、[CA ポリシーで場所 (クライアントの接続元 IP アドレス) によるアクセス制御] を行っている場合に有効なシナリオになります。
 例えば、CA ポリシーで [信頼された場所 A (送信元 IP アドレス範囲) からのアクセスは許可するが、それ以外の場所からのアクセスはブロックする] というアクセス制御を行っていたとします。
 信頼された場所 A からアクセスしたクライアントは、もちろんその時点ではリソース (Exchange Online や SharePoint Online 等) に対してアクセスが可能です。
@@ -71,6 +75,7 @@ CAE とは、上記のように [クライアント/ユーザーの変化に応�
 <BR>
 
 ## CAE が有効になるとどんな影響があるの？
+
 先に記載した通り、今までよりもほぼリアルタイムに、クライアント/ユーザーの状態変化に応じてアクセス トークンの有効期間内であってもユーザーのアクセスの失効がおこなわれた場合に反映させることができたり、 CA ポリシーの評価を受けられるようになります。つまり有効になることで困ることは基本的には無いのですが、注意が必要な点として CAE が有効になりますとアクセス トークンの有効期限が最大 28 時間になります。
 前述の技術情報 [継続的アクセス評価](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation) の [トークンの有効期間](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation#token-lifetime) をご覧ください。
 
@@ -85,6 +90,7 @@ CAE とは、上記のように [クライアント/ユーザーの変化に応�
 <BR>
 
 ## CAE はどのリソースおよびクライアントでも実現できるの？
+
 現時点では、リソースとしては Exchange Online と SharePoint Online、アクセス元のクライアントとしてはブラウザと Office アプリが対象になります。
 なお、Exchange Onine や SharePoint Online が併用されている Teams も対象になります。
 
@@ -93,6 +99,7 @@ CAE に対応していないリソース、クライアント アプリの場合
 <BR>
 
 ## CAE は無効にできるの？
+
 はい、CAE を無効にすることは、Azure ポータル上の操作にて可能です。
 前述の技術情報 [継続的アクセス評価](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation) [CAE を有効または無効にする (プレビュー)](https://docs.microsoft.com/ja-jp/azure/active-directory/conditional-access/concept-continuous-access-evaluation#enable-or-disable-cae-preview) をご覧ください。
 
